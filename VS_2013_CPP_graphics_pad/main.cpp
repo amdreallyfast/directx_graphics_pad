@@ -84,16 +84,35 @@ int WINAPI WinMain(
    // enter the main loop
 
    // this struct holds Windows event messages
-   MSG event_message;
+   MSG event_message = { 0 };
 
-   // wait for the next message in the queue, then store the result the message variable
-   while (GetMessage(&event_message, NULL, 0, 0))
+   // enter the loop and stay here forever
+   while (true)
    {
-      // translate keystroke messages into the right format
-      TranslateMessage(&event_message);
+      // check to see if any messages are waiting in the queue, and remove them from the queue if you find them
+      if (PeekMessage(&event_message, NULL, 0, 0, PM_REMOVE))
+      {
+         // translate keystroke messages into the right format, then send them to the "window processing" function for handling
+         TranslateMessage(&event_message);
+         DispatchMessage(&event_message);
 
-      // send the message to the WindowProc function
-      DispatchMessage(&event_message);
+         // check to see if it is time to quite, and if it is, break out of the loop and return from main
+         // Note: The window will not send a WM_QUIT message.  It is called when the application (in this
+         // case, our code) calls the PostQuitMessage(...) function, which in turn will only be called if
+         // the message was WM_DESTROY.
+         // Previously, we used the return value of GetMessage(...) as the condition in the while(...) 
+         // loop, and that function would return false if it got a WM_QUIT message.  Now the loop 
+         // condition is always true, so we need to manually check for WM_QUIT and stop the application
+         // if we see it.
+         if (WM_QUIT == event_message.message)
+         {
+            break;
+         }
+      }
+      else
+      {
+         // no message, so run game code here
+      }
    }
 
    // return this part (??which part??) of the WM_QUIT message to Windows
