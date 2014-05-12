@@ -55,7 +55,15 @@ int WINAPI WinMain(
    // register the window class so that Windows can use it to create windows
    RegisterClassEx(&wc);
 
-   // create the window on the screen
+   // calculate the size of the window based on how big we want the client (the space within the window borders) to be
+   // Note: This "adjust window rectangle" function conveniently calculates window dimensions given information about
+   // the dimensions of the size and origin of the client area, the window style, and whether the window has menus or 
+   // not (FALSE in this case).  The last item is some information about extended window styles for "Extended Window".
+   // We are not using any such styles, so we provide NULL.
+   RECT window_rectangle = { 0, 0, 500, 400 };
+   AdjustWindowRectEx(&window_rectangle, WS_OVERLAPPEDWINDOW, FALSE, NULL);
+
+      // create the window on the screen
    handle_window = CreateWindowEx(
       NULL,                               // do not use any extra style options provided by "Extended Window"
       L"WindowClass1",                    // name of the window class that this window will be an instance of (must match an existing window class name)
@@ -63,8 +71,8 @@ int WINAPI WinMain(
       WS_OVERLAPPEDWINDOW,                // this option specifies several standard features and make a basic window style (check out the #define for more details)
       300,                                // x-position of the window relative to the desktop
       300,                                // y-position of the window relative to the desktop
-      500,                                // width of the window
-      400,                                // height of the window
+      window_rectangle.right - window_rectangle.left,    // width of the window (origin at left, increases left to right)
+      window_rectangle.bottom - window_rectangle.top,    // height of the window (origin at top, increases top to bottom)
       NULL,                               // we have no parent window, so do not provide a handle to a window
       NULL,                               // we are not using menus, so do not provide a handle to a menu
       h_instance,                         // application handle determined by Windows when the program starts; identifies this window with our application
