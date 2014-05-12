@@ -5,7 +5,7 @@
 #include <windowsx.h>
 
 // this is the main message handler for the program
-LRESULT CALLBACK my_window_proc(HWND h_wind, UINT message, WPARAM w_param, LPARAM l_param)
+LRESULT CALLBACK my_window_proc(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param)
 {
    // sort through and find what code to run for the message given
    switch (message)
@@ -23,7 +23,7 @@ LRESULT CALLBACK my_window_proc(HWND h_wind, UINT message, WPARAM w_param, LPARA
 
    // handle any messages that the switch statement didn't
    //??what does this do??
-   return DefWindowProc(h_wind, message, w_param, l_param);
+   return DefWindowProc(handle_window, message, w_param, l_param);
 }
 
 // this is the entry point for any Windows program
@@ -36,41 +36,42 @@ int WINAPI WinMain(
    int n_show_cmd)
 {
    // this will be the handle for the window (hence the acronym)
-   HWND h_wind;
+   HWND handle_window;
 
    // this struct will hold information for the window class
+   // Note: WNDCLASS is depreciated.  It was superseded by WNDCLASSEX, so use that instead.
    WNDCLASSEX wc;
    ZeroMemory(&wc, sizeof(WNDCLASSEX));
 
    // fill the struct with the needed information
-   wc.cbSize = sizeof(WNDCLASSEX);
-   wc.style = CS_HREDRAW | CS_VREDRAW;
-   wc.lpfnWndProc = my_window_proc;
-   wc.hInstance = h_instance;
-   wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-   wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
-   wc.lpszClassName = L"WindowClass1";
+   wc.cbSize = sizeof(WNDCLASSEX);           // tell the struct how big it is (??why doesn't it know how big itself is??)
+   wc.style = CS_HREDRAW | CS_VREDRAW;       // redraw on vertical and horizontal resizing
+   wc.lpfnWndProc = my_window_proc;          // this is the function that the window class calls when it gets a message from windows (keystroke, mouse movement, etc.)
+   wc.hInstance = h_instance;                // the handle to our application instance
+   wc.hCursor = LoadCursor(NULL, IDC_ARROW); // don't give it an application handle that stores a pointer graphic (we don't have one anyway), and give it the default moust pointer
+   wc.hbrBackground = (HBRUSH)COLOR_WINDOW;  // give the window class's background the default window color
+   wc.lpszClassName = L"WindowClass1";       // give the window class a name (when creating a window with this window class, you must specify this string exactly)
 
-   // register the window class
+   // register the window class so that Windows can use it to create windows
    RegisterClassEx(&wc);
 
    // create the window on the screen
-   h_wind = CreateWindowEx(
-      NULL,                               // ??
-      L"WindowClass1",                    // // name of the window class
-      L"Our First Windowed Program",      // title of the window
-      WS_OVERLAPPEDWINDOW,                // window style
-      300,                                // x-position of the window
-      300,                                // y-position of the window
+   handle_window = CreateWindowEx(
+      NULL,                               // do not use any extra style options provided by "Extended Window"
+      L"WindowClass1",                    // name of the window class that this window will be an instance of (must match an existing window class name)
+      L"Our First Windowed Program",      // displayed on the window's title bar
+      WS_OVERLAPPEDWINDOW,                // this option specifies several standard features and make a basic window style (check out the #define for more details)
+      300,                                // x-position of the window relative to the desktop
+      300,                                // y-position of the window relative to the desktop
       500,                                // width of the window
       400,                                // height of the window
-      NULL,                               // we have no parent window
-      NULL,                               // we are not using menus
-      h_instance,                         // application handle determined by Windows when the program starts; identifies this window with out application
+      NULL,                               // we have no parent window, so do not provide a handle to a window
+      NULL,                               // we are not using menus, so do not provide a handle to a menu
+      h_instance,                         // application handle determined by Windows when the program starts; identifies this window with our application
       NULL);                              // used with multiple windows, which we are not using
 
    // display the window on the screen
-   ShowWindow(h_wind, n_show_cmd);
+   ShowWindow(handle_window, n_show_cmd);
 
    // enter the main loop
 
