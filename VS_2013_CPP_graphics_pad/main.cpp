@@ -4,13 +4,13 @@
 
 // for function declarations of Direct3D basic and extended functions
 #include <d3d11.h>
-
-// for macros that Direct3D 11 uses that are based in Direct3D 10
-//#include <d3d10.h>
+#include <d3dx11.h>
+#include <D3DX10.h>
 
 // include the Direct3D library files
 #pragma comment (lib, "d3d11.lib")
-//#pragma comment (lib, "d3d10.lib")
+#pragma comment (lib, "C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Lib/x86/d3dx11.lib")
+#pragma comment (lib, "C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Lib/x86/d3dx10.lib")
 
 // the pointer to the interface for the swap chain (that is, the frame buffer)
 IDXGISwapChain *g_swap_chain_ptr;
@@ -87,6 +87,7 @@ void clean_d3d(void)
    // whenever Direct3D is created, it must be closed down
    // Note: Resources for DirectX are created at the Windows level, and if not released, they will remain running/in memory until the next program restart.
    g_swap_chain_ptr->Release();
+   g_render_target_ptr->Release();
    g_dev_ptr->Release();
    g_dev_context_ptr->Release();
 }
@@ -95,7 +96,7 @@ void clean_d3d(void)
 void render_frame(void)
 {
    // clear the render target (this should be the back buffer) to a deep blue
-   //g_dev_context_ptr->ClearRenderTargetView(g_render_target_ptr, )
+   g_dev_context_ptr->ClearRenderTargetView(g_render_target_ptr, D3DXCOLOR(0.0f, 0.2f, 0.4f, 1.0f));
 
    // do 3D render to the render target (this should be the back buffer)
 
@@ -160,7 +161,7 @@ int WINAPI WinMain(
    // the dimensions of the size and origin of the client area, the window style, and whether the window has menus or 
    // not (FALSE in this case).  The last item is some information about extended window styles for "Extended Window".
    // We are not using any such styles, so we provide NULL.
-   RECT window_rectangle = { 0, 0, 500, 400 };
+   RECT window_rectangle = { 0, 0, 800, 600 };
    AdjustWindowRectEx(&window_rectangle, WS_OVERLAPPEDWINDOW, FALSE, NULL);
 
       // create the window on the screen
@@ -213,10 +214,9 @@ int WINAPI WinMain(
             break;
          }
       }
-      else
-      {
-         // no message, so run game code here
-      }
+
+      // render a frame, regardless of whether a message was handled or not
+      render_frame();
    }
 
    clean_d3d();
