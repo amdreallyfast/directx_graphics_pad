@@ -13,21 +13,22 @@
 //#pragma comment (lib, "d3d10.lib")
 
 // the pointer to the interface for the swap chain (that is, the frame buffer)
-IDXGISwapChain *g_swap_chain;
+IDXGISwapChain *g_swap_chain_ptr;
 
 // the pointer to our Direct3D device interface, which is our program's representation of our video adapter and mostly handles video memory
-ID3D11Device *g_dev;
+ID3D11Device *g_dev_ptr;
 
 // the pointer to our Direct3d device context, which manages the GPU and the rendering pipeline
-ID3D11DeviceContext *g_dev_context;
+ID3D11DeviceContext *g_dev_context_ptr;
+
+// a pointer to the back buffer in the swap chain; this is the render target (as opposed to the front buffer)
+ID3D11RenderTargetView *g_render_target_ptr;
 
 // sets up and initializes Direct3D
 void init_d3d(HWND window_handle)
 {
    // create a struct to hold information about the swap chain
    DXGI_SWAP_CHAIN_DESC swap_chain_desc;
-
-   // clear out the struct for use
    ZeroMemory(&swap_chain_desc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
    // fill the swap chain description structure
@@ -48,11 +49,36 @@ void init_d3d(HWND window_handle)
       NULL,                         // number of feature levels; we don't have any feature levels, so use NULL
       D3D11_SDK_VERSION,            // DirectX SDK version; used for backwards compatability so that Direct3D knows how to adapt varying DirectX 11 versions (our version) to our program
       &swap_chain_desc,             // pointer to the swap chain description structure
-      &g_swap_chain,                // a pointer to a pointer to the swap chain object
-      &g_dev,                       // a pointer to a pointer to the Direct3D device object
+      &g_swap_chain_ptr,                // a pointer to a pointer to the swap chain object
+      &g_dev_ptr,                       // a pointer to a pointer to the Direct3D device object
       NULL,                         // a pointer to a feature level variable; we are not using special features, so use NULL
-      &g_dev_context                // a pointer to a pointer to the device context object
+      &g_dev_context_ptr                // a pointer to a pointer to the device context object
       );
+
+   // initialize the render target
+   // This process is how we make a render target object make it point to the swap chain's back buffer.
+   // - Create a pointer to a 2D texture object.  This is an intermediate object that basically carries the back buffer's pointer until the render target is created.
+   // - Create a 2D texture object from the back buffer in the swap chain, and get its address.
+   // - Create a "render target view" object, and put the pointer into the global render target pointer.
+   // - Release the 2D texture object since it's address carrying purpose is finished.
+   // - Bind the our list of render targets (in this case, of length 1) to the "output-merger" stage of the pipeline.
+   ID3D11Texture2D *back_buffer_ptr;
+   g_swap_chain_ptr->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&back_buffer_ptr);
+   g_dev_ptr->CreateRenderTargetView(back_buffer_ptr, NULL, &g_render_target_ptr);
+   back_buffer_ptr->Release();
+   g_dev_context_ptr->OMSetRenderTargets(1, &g_render_target_ptr, NULL);
+
+   // set the viewpoint
+   // Normalize the viewport from "0 -> width/height" to "(-1,-1) to (1,1) with (0,0) at the center.
+   // Also, only use one viewport.
+   D3D11_VIEWPORT viewport;
+   ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
+   viewport.TopLeftX = 0;
+   viewport.TopLeftY = 0;
+   viewport.Width = 800;
+   viewport.Height = 600;
+   g_dev_context_ptr->RSSetViewports(1, &viewport);
+
 }
 
 // closes Direct3D and releases memory
@@ -60,9 +86,21 @@ void clean_d3d(void)
 {
    // whenever Direct3D is created, it must be closed down
    // Note: Resources for DirectX are created at the Windows level, and if not released, they will remain running/in memory until the next program restart.
-   g_swap_chain->Release();
-   g_dev->Release();
-   g_dev_context->Release();
+   g_swap_chain_ptr->Release();
+   g_dev_ptr->Release();
+   g_dev_context_ptr->Release();
+}
+
+// render a single frame
+void render_frame(void)
+{
+   // clear the render target (this should be the back buffer) to a deep blue
+   //g_dev_context_ptr->ClearRenderTargetView(g_render_target_ptr, )
+
+   // do 3D render to the render target (this should be the back buffer)
+
+   // swith the back buffer and the front buffer
+   g_swap_chain_ptr->Present(0, 0); 
 }
 
 
