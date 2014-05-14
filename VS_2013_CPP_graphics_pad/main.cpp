@@ -1,3 +1,6 @@
+#include <fstream>
+using namespace::std;
+
 // include the basic windows header file and an "extensions" header
 #include <Windows.h>
 #include <windowsx.h>
@@ -24,9 +27,108 @@ ID3D11DeviceContext *g_dev_context_ptr;
 // a pointer to the back buffer in the swap chain; this is the render target (as opposed to the front buffer)
 ID3D11RenderTargetView *g_render_target_ptr;
 
+// a pointer to the vertex buffer
+ID3D11Buffer *g_vertex_buffer_ptr;
+
+// a pointer to the input layout of the vertex buffer
+ID3D11InputLayout *g_input_layout_ptr;
+
+// these are self-explanatory
+//#define SCREEN_WIDTH    1152
+//#define SCREEN_HEIGHT   864
+#define SCREEN_WIDTH    800
+#define SCREEN_HEIGHT   600
+
+// shader objects are global so that they will persist throughout the program
+ID3D11VertexShader *g_vertex_shader_ptr;
+ID3D11PixelShader *g_pixel_shader_ptr;
+
+// vertices for our first triangle
+struct MY_VERTEX
+{
+   D3DXVECTOR3 position;    // position
+   D3DXCOLOR color;  // color
+};
+MY_VERTEX g_my_vertices_arr[] =
+{
+   { D3DXVECTOR3(+0.0f, +0.5f, +0.0f), D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f) },
+   { D3DXVECTOR3(+0.45f, -0.5f, +0.0f), D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) },
+   { D3DXVECTOR3(-0.45f, -0.5f, +0.0f), D3DXCOLOR(0.0f, 0.0f, 1.0f, 1.0f) },
+};
+
+
+// initialize the Direct3D pipeline
+void init_pipeline(void)
+{
+   HRESULT r = 0;
+
+   // load and compile the two shaders
+   ID3D10Blob *vertex_shader_blob_ptr;
+   ID3D10Blob *pixel_shader_blob_ptr;
+   r = D3DX11CompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, 0, &vertex_shader_blob_ptr, 0, 0);
+   r = 0;
+   r = D3DX11CompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, 0, &pixel_shader_blob_ptr, 0, 0);
+
+   // encapsulate bother shader blobs into their own shader objects
+   g_dev_ptr->CreateVertexShader(vertex_shader_blob_ptr->GetBufferPointer(), vertex_shader_blob_ptr->GetBufferSize(), NULL, &g_vertex_shader_ptr);
+   g_dev_ptr->CreateVertexShader(pixel_shader_blob_ptr->GetBufferPointer(), vertex_shader_blob_ptr->GetBufferSize(), NULL, &g_vertex_shader_ptr);
+
+   // register the shader objects with the graphical context
+   g_dev_context_ptr->VSSetShader(g_vertex_shader_ptr, 0, 0);
+   g_dev_context_ptr->PSSetShader(g_pixel_shader_ptr, 0, 0);
+
+
+   // now for the actual vertex data
+
+   // describe how the data is layed out in the vertex buffer
+   // - Create input element descriptions for each unique item in my custom vertex.  In this case, I have a position, and 3 floats later I have a color.
+   // - Create an input layout object and assign it to the global input layout pointer.
+   // - Register the input layout object with the context so that it can make sense of the data in the vertex buffer.
+   D3D11_INPUT_ELEMENT_DESC input_elem_desc_arr[] =
+   {
+      { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, sizeof(float) * 3, D3D11_INPUT_PER_VERTEX_DATA },
+   };
+   g_dev_ptr->CreateInputLayout(
+      input_elem_desc_arr,
+      sizeof(input_elem_desc_arr) / sizeof(D3D11_INPUT_ELEMENT_DESC),
+      vertex_shader_blob_ptr->GetBufferPointer(),
+      vertex_shader_blob_ptr->GetBufferSize(),
+      &g_input_layout_ptr);
+   g_dev_context_ptr->IASetInputLayout(g_input_layout_ptr);
+}
+
+// initialize ??what are we initializing? "graphics" is not very descriptive
+void init_graphics(void)
+{
+   // create a buffer description structure that describes the data to be held (we want vertex data), then tell the video adapter handling object to create such this buffer in GPU memory
+   D3D11_BUFFER_DESC vertex_buffer_desc;
+   ZeroMemory(&vertex_buffer_desc, sizeof(vertex_buffer_desc));
+   vertex_buffer_desc.Usage = D3D11_USAGE_DYNAMIC;             // an optimization lable; basically says that CPU is only allowed to write to this buffer (not read from), GPU only allowed to read from this buffer (not write to)
+   vertex_buffer_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // apparently the "usage" field needs clarification; states that CPU is only allowed write permission (I don't understand MSDN's article on it)
+   vertex_buffer_desc.ByteWidth = sizeof(MY_VERTEX) * 3;       // "times 3" because we are sending three vertices
+   vertex_buffer_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;    // label this buffer as being a buffer for vertex data
+
+   // create the buffer with the description that was just filled out and set the global vertex buffer pointer to point at it
+   // Note: Don't provide initializing information.
+   g_dev_ptr->CreateBuffer(&vertex_buffer_desc, NULL, &g_vertex_buffer_ptr);
+
+   // now that the buffer is created, fill out the buffer with its initial data
+   // Note: Direct3D may be working with the buffer in the background, so we are not allowed direct access to it.  The global vertex buffer pointer is a pointer to an object, not the buffer's memory
+   // address, so we cannot access the memory directly from the vertex buffer pointer.  We can, however, map the buffer to the context, which will wait for the GPU to finish accessing the buffer,
+   // then block the GPU from accessing it and allow the CPU to access it.  Then we send the data to the video memory using the CPU, and then we unmap the buffer so that the CPU is blocked and the
+   // GPU is unblocked.
+   D3D11_MAPPED_SUBRESOURCE mapped_subresource;
+   g_dev_context_ptr->Map(g_vertex_buffer_ptr, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &mapped_subresource);
+   memcpy(mapped_subresource.pData, g_my_vertices_arr, sizeof(g_my_vertices_arr));
+   g_dev_context_ptr->Unmap(g_vertex_buffer_ptr, NULL);
+}
+
 // sets up and initializes Direct3D
 void init_d3d(HWND window_handle)
 {
+   HRESULT r = 0;
+
    // create a struct to hold information about the swap chain
    DXGI_SWAP_CHAIN_DESC swap_chain_desc;
    ZeroMemory(&swap_chain_desc, sizeof(DXGI_SWAP_CHAIN_DESC));
@@ -34,13 +136,16 @@ void init_d3d(HWND window_handle)
    // fill the swap chain description structure
    swap_chain_desc.BufferCount = 1;                                  // one back buffer and one front buffer (??is there only one buffer total??) (we could specify more, but we will just start with 1)
    swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;   // use 32-bit color (8 red bits, 8 green bits, 8 blue bits, 8 alpha bits)
+   swap_chain_desc.BufferDesc.Width = SCREEN_WIDTH;
+   swap_chain_desc.BufferDesc.Height = SCREEN_HEIGHT;
    swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;    // render the target output to the back buffer of the swap chain (that is, not the currently displayed one)
    swap_chain_desc.OutputWindow = window_handle;                     // the handle of the window that Direct3D will draw in
    swap_chain_desc.SampleDesc.Count = 4;                             // how many multisamples Direct3D will perform when blending pixels (that is, anti-aliasing)
    swap_chain_desc.Windowed = TRUE;                                  // windowed mode (that is, not full-screen mode) because our window is not full screen
+   swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;   // allow full-screen/windowed switch when user inputs Alt-Enter 
 
    // create a device, device context, and swap chain using the information in the swap chain structure
-   D3D11CreateDeviceAndSwapChain(
+   r = D3D11CreateDeviceAndSwapChain(
       NULL,                         // adapter; tell Direct3D to use the default graphics adapter
       D3D_DRIVER_TYPE_HARDWARE,     // driver type; tell Direct3D to use the graphics adapter's hardware for rendering (there are other options, but we will use this one)
       NULL,                         // handle to software module; the driver type is not "use software", so use NULL
@@ -63,9 +168,9 @@ void init_d3d(HWND window_handle)
    // - Release the 2D texture object since it's address carrying purpose is finished.
    // - Bind the our list of render targets (in this case, of length 1) to the "output-merger" stage of the pipeline.
    ID3D11Texture2D *back_buffer_ptr;
-   g_swap_chain_ptr->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&back_buffer_ptr);
-   g_dev_ptr->CreateRenderTargetView(back_buffer_ptr, NULL, &g_render_target_ptr);
-   back_buffer_ptr->Release();
+   r = g_swap_chain_ptr->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&back_buffer_ptr);
+   r = g_dev_ptr->CreateRenderTargetView(back_buffer_ptr, NULL, &g_render_target_ptr);
+   r = back_buffer_ptr->Release();
    g_dev_context_ptr->OMSetRenderTargets(1, &g_render_target_ptr, NULL);
 
    // set the viewpoint
@@ -75,22 +180,36 @@ void init_d3d(HWND window_handle)
    ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
    viewport.TopLeftX = 0;
    viewport.TopLeftY = 0;
-   viewport.Width = 800;
-   viewport.Height = 600;
+   viewport.Width = SCREEN_WIDTH;
+   viewport.Height = SCREEN_HEIGHT;
    g_dev_context_ptr->RSSetViewports(1, &viewport);
 
+   init_pipeline();
+   init_graphics();
 }
 
 // closes Direct3D and releases memory
 void clean_d3d(void)
 {
    // whenever Direct3D is created, it must be closed down
+   // Note: Direct3D is actually incapable of closing down when in fullscreen mode, so force it into windowed mode when closing.
+
+   // force it into windowed mode
+   // Note: The second argument is a feature that allows you to select a particular video adapter manually.  Set it to NULL, and it will choose the correct adapter automatically (??how do I know??).
+   g_swap_chain_ptr->SetFullscreenState(FALSE, NULL);
+
+   // release global resources
    // Note: Resources for DirectX are created at the Windows level, and if not released, they will remain running/in memory until the next program restart.
+   g_vertex_shader_ptr->Release();
+   g_pixel_shader_ptr->Release();
+   g_vertex_buffer_ptr->Release();
+   g_input_layout_ptr->Release();
    g_swap_chain_ptr->Release();
    g_render_target_ptr->Release();
    g_dev_ptr->Release();
    g_dev_context_ptr->Release();
 }
+
 
 // render a single frame
 void render_frame(void)
@@ -98,10 +217,23 @@ void render_frame(void)
    // clear the render target (this should be the back buffer) to a deep blue
    g_dev_context_ptr->ClearRenderTargetView(g_render_target_ptr, D3DXCOLOR(0.0f, 0.2f, 0.4f, 1.0f));
 
-   // do 3D render to the render target (this should be the back buffer)
 
-   // swith the back buffer and the front buffer
-   g_swap_chain_ptr->Present(0, 0); 
+   // do 3D render to the render target (this should be the back buffer)
+   
+   // select which vertex buffer to display (we only have one, so this is simple)
+   UINT stride = sizeof(MY_VERTEX);
+   UINT offset = 0;
+   g_dev_context_ptr->IASetVertexBuffers(0, 1, &g_vertex_buffer_ptr, &stride, &offset);
+
+   // select the drawing routine for the primitives that will be drawn
+   g_dev_context_ptr->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+   // draw the vertex buffer to the render target
+   g_dev_context_ptr->Draw(3, 0);
+
+
+   // switch the back buffer and the front buffer
+   g_swap_chain_ptr->Present(0, 0);
 }
 
 
@@ -150,7 +282,7 @@ int WINAPI WinMain(
    wc.lpfnWndProc = my_window_proc;          // this is the function that the window class calls when it gets a message from windows (keystroke, mouse movement, etc.)
    wc.hInstance = h_instance;                // the handle to our application instance
    wc.hCursor = LoadCursor(NULL, IDC_ARROW); // don't give it an application handle that stores a pointer graphic (we don't have one anyway), and give it the default moust pointer
-   wc.hbrBackground = (HBRUSH)COLOR_WINDOW;  // give the window class's background the default window color
+   //wc.hbrBackground = (HBRUSH)COLOR_WINDOW;  // give the window class's background the default window color
    wc.lpszClassName = L"WindowClass1";       // give the window class a name (when creating a window with this window class, you must specify this string exactly)
 
    // register the window class so that Windows can use it to create windows
@@ -161,10 +293,10 @@ int WINAPI WinMain(
    // the dimensions of the size and origin of the client area, the window style, and whether the window has menus or 
    // not (FALSE in this case).  The last item is some information about extended window styles for "Extended Window".
    // We are not using any such styles, so we provide NULL.
-   RECT window_rectangle = { 0, 0, 800, 600 };
+   RECT window_rectangle = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
    AdjustWindowRectEx(&window_rectangle, WS_OVERLAPPEDWINDOW, FALSE, NULL);
 
-      // create the window on the screen
+   // create the window on the screen
    handle_window = CreateWindowEx(
       NULL,                               // do not use any extra style options provided by "Extended Window"
       L"WindowClass1",                    // name of the window class that this window will be an instance of (must match an existing window class name)
