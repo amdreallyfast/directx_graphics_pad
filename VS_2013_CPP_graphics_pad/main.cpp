@@ -1,6 +1,3 @@
-#include <fstream>
-using namespace::std;
-
 // include the basic windows header file and an "extensions" header
 #include <Windows.h>
 #include <windowsx.h>
@@ -46,32 +43,36 @@ ID3D11PixelShader *g_pixel_shader_ptr;
 // vertices for our first triangle
 struct MY_VERTEX
 {
-   D3DXVECTOR3 position;    // position
+   //D3DXVECTOR3 position;    // position
+   float x, y, z;    // position
    D3DXCOLOR color;  // color
 };
 MY_VERTEX g_my_vertices_arr[] =
 {
-   { D3DXVECTOR3(+0.0f, +0.5f, +0.0f), D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f) },
-   { D3DXVECTOR3(+0.45f, -0.5f, +0.0f), D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) },
-   { D3DXVECTOR3(-0.45f, -0.5f, +0.0f), D3DXCOLOR(0.0f, 0.0f, 1.0f, 1.0f) },
+   //{ D3DXVECTOR3(+0.0f, +0.5f, +0.0f), D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f) },
+   //{ D3DXVECTOR3(+0.45f, -0.5f, +0.0f), D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) },
+   //{ D3DXVECTOR3(-0.45f, -0.5f, +0.0f), D3DXCOLOR(0.0f, 0.0f, 1.0f, 1.0f) },
+   { +0.0f, +0.5f, +0.0f, D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f) },
+   { +0.45f, -0.5f, +0.0f, D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f) },
+   { -0.45f, -0.5f, +0.0f, D3DXCOLOR(0.0f, 0.0f, 1.0f, 1.0f) },
 };
 
 
 // initialize the Direct3D pipeline
 void init_pipeline(void)
 {
-   HRESULT r = 0;
-
    // load and compile the two shaders
    ID3D10Blob *vertex_shader_blob_ptr;
    ID3D10Blob *pixel_shader_blob_ptr;
-   r = D3DX11CompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, 0, &vertex_shader_blob_ptr, 0, 0);
-   r = 0;
-   r = D3DX11CompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, 0, &pixel_shader_blob_ptr, 0, 0);
+   ID3D10Blob *VS, *PS;
+   D3DX11CompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, 0, &vertex_shader_blob_ptr, 0, 0);
+   D3DX11CompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, 0, &pixel_shader_blob_ptr, 0, 0);
+   //D3DX11CompileFromFile(L"shaders.shader", 0, 0, "VShader", "vs_4_0", 0, 0, 0, &vertex_shader_blob_ptr, 0, 0);
+   //D3DX11CompileFromFile(L"shaders.shader", 0, 0, "PShader", "ps_4_0", 0, 0, 0, &pixel_shader_blob_ptr, 0, 0);
 
    // encapsulate bother shader blobs into their own shader objects
    g_dev_ptr->CreateVertexShader(vertex_shader_blob_ptr->GetBufferPointer(), vertex_shader_blob_ptr->GetBufferSize(), NULL, &g_vertex_shader_ptr);
-   g_dev_ptr->CreateVertexShader(pixel_shader_blob_ptr->GetBufferPointer(), vertex_shader_blob_ptr->GetBufferSize(), NULL, &g_vertex_shader_ptr);
+   g_dev_ptr->CreatePixelShader(pixel_shader_blob_ptr->GetBufferPointer(), pixel_shader_blob_ptr->GetBufferSize(), NULL, &g_pixel_shader_ptr);
 
    // register the shader objects with the graphical context
    g_dev_context_ptr->VSSetShader(g_vertex_shader_ptr, 0, 0);
@@ -86,8 +87,11 @@ void init_pipeline(void)
    // - Register the input layout object with the context so that it can make sense of the data in the vertex buffer.
    D3D11_INPUT_ELEMENT_DESC input_elem_desc_arr[] =
    {
-      { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-      { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, sizeof(float) * 3, D3D11_INPUT_PER_VERTEX_DATA },
+      // the position will use 3 32bit floats
+      { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+      // the color will use 4 32bit floats
+      { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA },
    };
    g_dev_ptr->CreateInputLayout(
       input_elem_desc_arr,
@@ -120,6 +124,7 @@ void init_graphics(void)
    // GPU is unblocked.
    D3D11_MAPPED_SUBRESOURCE mapped_subresource;
    g_dev_context_ptr->Map(g_vertex_buffer_ptr, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &mapped_subresource);
+   size_t x = sizeof(g_my_vertices_arr);
    memcpy(mapped_subresource.pData, g_my_vertices_arr, sizeof(g_my_vertices_arr));
    g_dev_context_ptr->Unmap(g_vertex_buffer_ptr, NULL);
 }
@@ -219,7 +224,7 @@ void render_frame(void)
 
 
    // do 3D render to the render target (this should be the back buffer)
-   
+
    // select which vertex buffer to display (we only have one, so this is simple)
    UINT stride = sizeof(MY_VERTEX);
    UINT offset = 0;
