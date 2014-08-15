@@ -253,14 +253,18 @@ LRESULT CALLBACK my_window_proc(HWND handle_window, UINT message, WPARAM w_param
       // this message is read when the window is closed (that is, its deconstructor has been called)
       PostQuitMessage(0);
       return 0;
-      break;
+      // no need for "break" because "return" is used
    }
    default:
       break;
    }
 
    // handle any messages that the switch statement didn't
-   //??what does this do??
+   // Note: From http://msdn.microsoft.com/en-us/library/windows/desktop/ms633572(v=vs.85).aspx,
+   // "Calls the default window procedure to provide default processing for any 
+   // window messages that an application does not process. This function ensures 
+   // that every message is processed. DefWindowProc is called with the same 
+   // parameters received by the window procedure."
    return DefWindowProc(handle_window, message, w_param, l_param);
 }
 
@@ -286,7 +290,7 @@ int WINAPI WinMain(
    wc.style = CS_HREDRAW | CS_VREDRAW;       // redraw on vertical and horizontal resizing
    wc.lpfnWndProc = my_window_proc;          // this is the function that the window class calls when it gets a message from windows (keystroke, mouse movement, etc.)
    wc.hInstance = h_instance;                // the handle to our application instance
-   wc.hCursor = LoadCursor(NULL, IDC_ARROW); // don't give it an application handle that stores a pointer graphic (we don't have one anyway), and give it the default moust pointer
+   wc.hCursor = LoadCursor(NULL, IDC_ARROW); // don't give it an application handle that stores a pointer graphic (we don't have one anyway), and give it the default mouse pointer
    //wc.hbrBackground = (HBRUSH)COLOR_WINDOW;  // give the window class's background the default window color
    wc.lpszClassName = L"WindowClass1";       // give the window class a name (when creating a window with this window class, you must specify this string exactly)
 

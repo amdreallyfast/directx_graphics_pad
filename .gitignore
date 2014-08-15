@@ -2,10 +2,20 @@
 # un-ignore certain extensions, then extend that un-ignoring to all subfolders.
 
 *
-!*.cs
 !*.cpp
 !*.h
 !*.txt
 
-# expand these rules to directory deep to reach the root folder of each project
-!/*/
+
+# we want to keep these around
+!.gitignore
+!.gitattributes
+
+# keep solution and  project files and filters so we can see how they change 
+# through the project
+!*.sln
+!*.vcxproj
+!*.vcxproj.filters
+
+# now unignore all sub-folders
+!**/
